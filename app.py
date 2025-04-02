@@ -15,6 +15,7 @@ import plotly.colors
 import matplotlib.colors as mcolors
 import boto3
 from botocore.exceptions import ClientError
+import gc
 
 # Call the s3 bucket
 client = boto3.client('s3')
@@ -34,6 +35,8 @@ def read_file(bucket, key_value):
     except ClientError as ex:
         if ex.response['Error']['Code'] == 'NoSuchKey':
             print("Key doesn't match. Please check the key value entered.")
+    except Exception as e:
+        print("Error during unpickling:", e)
 
 def read_pickle(bucket, key_value):
     try:
@@ -51,7 +54,46 @@ avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_
 avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')    
 avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
     
+################################################################################################################ 
     
+
+# Pick standard genes from expression_df and the average expression files
+
+# If you want to test only genes from a list use this
+gene_list_otherVendors = ['Acta2', 'Adgre1', 'Abcc8', 'Abcc9', 'Actl6b', 'Aif1', 'Akap5', 'Aldh5a1', 'App', 'Aqp1', 'Aqp4', 'Arg1', 'Bcl11b', 'Calca',
+            'Ccnd1', 'Cd247', 'Cd3e', 'Cd4', 'Cd5', 'Cd68', 'Cd86', 'Cd8a', 'Cdh1', 'Chat', 'Cnp', 'Cntnap1', 'Cntnap2', 'Col4a3/5/2/1',
+            'Creb1', 'Cspg4', 'Ctnnb1', 'Dbh', 'Dcx', 'Ddx5', 'Dlg2', 'Eea1', 'Eea5', 'Egr1', 'Emcn', 'Epm2a', 'Ewsr1', 'Fn1', 'Foxa2', 'Gad1', 'Gad2',
+            'Gad2/1', 'Gap43', 'Gfap', 'Gria2', 'Grin1', 'Grm2', 'Gsk3a', 'Gsk3a/b', 'Gucy1b1', 'Hcls1', 'Hopx', 'Htr2b', 'Htr7', 'Il10', 'Ins',
+            'Itgam', 'Itgax', 'Khdrbs1', 'Lamp1', 'Lyve1', 'Mag', 'Maoa', 'Maob', 'Map2', 'Mapk3', 'Mapk8/9/10', 'Mapt', 'Mbp', 'Mki67', 'Mog',
+            'Mrc1', 'Myb', 'Ncam1', 'Nefh', 'Nefl', 'Nefm', 'Nefm/h', 'Nfasc', 'Nfatc1', 'Nos1', 'Nos3', 'Npy', 'Nr3c2', 'Nrp1', 'Ntrk3', 'Ocrl', 'Oxt',
+            'P2rx4', 'P2ry12', 'Pax6', 'Pax7', 'Pdgfrb', 'Pecam1', 'Plp1', 'Ppp1r1b', 'Prkca/b/g', 'Pvalb', 'Pycard', 'Rbbp4', 'Rbfox3', 'S100a10',
+            'S100b', 'Satb2', 'Sdc4', 'Sdk2', 'Set', 'Sirt3', 'Slc1a2', 'Slc1a3', 'Slc6a3', 'Slc6a4', 'Snca', 'Sod2', 'Sox2', 'Sox4', 'Sox9', 'Sst',
+            'Stat1', 'Stx1a', 'Stx1a/1b/2/3', 'Sun2', 'Syn1', 'Syn2', 'Syp', 'Tardbp', 'Tbr1', 'Th', 'Tmem119', 'Tph1', 'Tph2', 'Tuba', 'Tubb', 'Tubb3',
+            'Uchl1', 'Vim']
+
+gene_list_neuromab = ['Adam11', 'Aldh1l1', 'Amigo1', 'Arx', 'Atp7a', 'Bdnf', 'Cacna1h', 'Cadm4', 'Calb1', 'Calb2', 'Clcn4', 'Cntnap1',
+                     'Dlg1', 'Dlg2', 'Dlg3', 'Dlg4', 'Drd2', 'Fgf13', 'Gabrb3', 'Gabre', 'Hspa9', 'Kcna1', 'Kcnd2', 'Lrp4',
+                     'Lrrk1', 'Lrrtm2', 'Lrrtm4', 'Mff', 'Mog', 'Nos1', 'Npy', 'Nrcam', 'Olfm1', 'Znf746', 'Pex5l', 'Qk',
+                     'Rbm17', 'Reep1', 'Reep2', 'Rufy3', 'S100a5', 'Shank1', 'Shank2', 'Shank3', 'Slc38a1', 'Snapin', 'Svop', 'Trpc4',
+                     'Vapa', 'Vdac1', 'Tpte']
+
+excluded_genes = ['Col4a3/5/2/1', 'Eea5', 'Gad2/1', 'Gsk3a/b', 'Ins', 
+                  'Mapk8/9/10', 'Nefm/h', 'Prkca/b/g', 'Stx1a/1b/2/3', 
+                  'Tuba', 'Tubb', 'Znf746', 'Qki']
+
+gene_list = [
+    gene for gene in (gene_list_otherVendors + gene_list_neuromab) 
+    if gene not in excluded_genes
+]
+
+avg_expression_genesAll_div_df = avg_expression_genesAll_div_df[gene_list]
+avg_expression_genesAll_class_df = avg_expression_genesAll_class_df[gene_list]
+avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
+avg_expression_genesAll_supertype_df = avg_expression_genesAll_supertype_df[gene_list]    
+gc.collect()
+    
+    
+################################################################################################################
 # Average expressions of genes in all taxonomy levels
 # #expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
 # avg_expression_genesAll_div_df = pd.read_csv('/data/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
@@ -66,6 +108,20 @@ avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_express
 
 # Import taxonomy dictionaries if needed
 
+sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
+
+if sample_to_type is None:
+    raise RuntimeError("Failed to load pickle — returned None.")
+
+sample_to_subclass = {
+    sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
+    if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
+    for sample, sample_types in sample_to_type.items()
+}
+
+del sample_to_type
+gc.collect()
+
 class_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_division.pkl')
 division_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/division_to_class.pkl')
 subclass_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_class.pkl')
@@ -73,11 +129,7 @@ class_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_
 subclass_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_division.pkl')
 subclass_to_supertype = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_supertype.pkl')
 supertype_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/supertype_to_subclass.pkl')
-sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
 type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
-
-if sample_to_type is None:
-    raise RuntimeError("Failed to load pickle — returned None.")
     
 # # Loading the dictionary from the file
 # with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
@@ -106,12 +158,7 @@ if sample_to_type is None:
     
 # with open('/data/taxonomy_dictionaries/type_to_subclass.pkl', 'rb') as file:
 #     type_to_subclass = pickle.load(file)   
-    
-sample_to_subclass = {
-    sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
-    if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
-    for sample, sample_types in sample_to_type.items()
-}
+   
 
 # Flatten lists where applicable
 sample_to_subclass = {k: v if isinstance(v, str) else v[0] for k, v in sample_to_subclass.items() if v}
@@ -146,44 +193,44 @@ def binary_to_decimal(binary_str):
                                             
 ################################################################################################################
 
-# Pick standard genes from expression_df and the average expression files
+# # Pick standard genes from expression_df and the average expression files
 
-# If you want to test only genes from a list use this
-gene_list_otherVendors = ['Acta2', 'Adgre1', 'Abcc8', 'Abcc9', 'Actl6b', 'Aif1', 'Akap5', 'Aldh5a1', 'App', 'Aqp1', 'Aqp4', 'Arg1', 'Bcl11b', 'Calca',
-            'Ccnd1', 'Cd247', 'Cd3e', 'Cd4', 'Cd5', 'Cd68', 'Cd86', 'Cd8a', 'Cdh1', 'Chat', 'Cnp', 'Cntnap1', 'Cntnap2', 'Col4a3/5/2/1',
-            'Creb1', 'Cspg4', 'Ctnnb1', 'Dbh', 'Dcx', 'Ddx5', 'Dlg2', 'Eea1', 'Eea5', 'Egr1', 'Emcn', 'Epm2a', 'Ewsr1', 'Fn1', 'Foxa2', 'Gad1', 'Gad2',
-            'Gad2/1', 'Gap43', 'Gfap', 'Gria2', 'Grin1', 'Grm2', 'Gsk3a', 'Gsk3a/b', 'Gucy1b1', 'Hcls1', 'Hopx', 'Htr2b', 'Htr7', 'Il10', 'Ins',
-            'Itgam', 'Itgax', 'Khdrbs1', 'Lamp1', 'Lyve1', 'Mag', 'Maoa', 'Maob', 'Map2', 'Mapk3', 'Mapk8/9/10', 'Mapt', 'Mbp', 'Mki67', 'Mog',
-            'Mrc1', 'Myb', 'Ncam1', 'Nefh', 'Nefl', 'Nefm', 'Nefm/h', 'Nfasc', 'Nfatc1', 'Nos1', 'Nos3', 'Npy', 'Nr3c2', 'Nrp1', 'Ntrk3', 'Ocrl', 'Oxt',
-            'P2rx4', 'P2ry12', 'Pax6', 'Pax7', 'Pdgfrb', 'Pecam1', 'Plp1', 'Ppp1r1b', 'Prkca/b/g', 'Pvalb', 'Pycard', 'Rbbp4', 'Rbfox3', 'S100a10',
-            'S100b', 'Satb2', 'Sdc4', 'Sdk2', 'Set', 'Sirt3', 'Slc1a2', 'Slc1a3', 'Slc6a3', 'Slc6a4', 'Snca', 'Sod2', 'Sox2', 'Sox4', 'Sox9', 'Sst',
-            'Stat1', 'Stx1a', 'Stx1a/1b/2/3', 'Sun2', 'Syn1', 'Syn2', 'Syp', 'Tardbp', 'Tbr1', 'Th', 'Tmem119', 'Tph1', 'Tph2', 'Tuba', 'Tubb', 'Tubb3',
-            'Uchl1', 'Vim']
+# # If you want to test only genes from a list use this
+# gene_list_otherVendors = ['Acta2', 'Adgre1', 'Abcc8', 'Abcc9', 'Actl6b', 'Aif1', 'Akap5', 'Aldh5a1', 'App', 'Aqp1', 'Aqp4', 'Arg1', 'Bcl11b', 'Calca',
+#             'Ccnd1', 'Cd247', 'Cd3e', 'Cd4', 'Cd5', 'Cd68', 'Cd86', 'Cd8a', 'Cdh1', 'Chat', 'Cnp', 'Cntnap1', 'Cntnap2', 'Col4a3/5/2/1',
+#             'Creb1', 'Cspg4', 'Ctnnb1', 'Dbh', 'Dcx', 'Ddx5', 'Dlg2', 'Eea1', 'Eea5', 'Egr1', 'Emcn', 'Epm2a', 'Ewsr1', 'Fn1', 'Foxa2', 'Gad1', 'Gad2',
+#             'Gad2/1', 'Gap43', 'Gfap', 'Gria2', 'Grin1', 'Grm2', 'Gsk3a', 'Gsk3a/b', 'Gucy1b1', 'Hcls1', 'Hopx', 'Htr2b', 'Htr7', 'Il10', 'Ins',
+#             'Itgam', 'Itgax', 'Khdrbs1', 'Lamp1', 'Lyve1', 'Mag', 'Maoa', 'Maob', 'Map2', 'Mapk3', 'Mapk8/9/10', 'Mapt', 'Mbp', 'Mki67', 'Mog',
+#             'Mrc1', 'Myb', 'Ncam1', 'Nefh', 'Nefl', 'Nefm', 'Nefm/h', 'Nfasc', 'Nfatc1', 'Nos1', 'Nos3', 'Npy', 'Nr3c2', 'Nrp1', 'Ntrk3', 'Ocrl', 'Oxt',
+#             'P2rx4', 'P2ry12', 'Pax6', 'Pax7', 'Pdgfrb', 'Pecam1', 'Plp1', 'Ppp1r1b', 'Prkca/b/g', 'Pvalb', 'Pycard', 'Rbbp4', 'Rbfox3', 'S100a10',
+#             'S100b', 'Satb2', 'Sdc4', 'Sdk2', 'Set', 'Sirt3', 'Slc1a2', 'Slc1a3', 'Slc6a3', 'Slc6a4', 'Snca', 'Sod2', 'Sox2', 'Sox4', 'Sox9', 'Sst',
+#             'Stat1', 'Stx1a', 'Stx1a/1b/2/3', 'Sun2', 'Syn1', 'Syn2', 'Syp', 'Tardbp', 'Tbr1', 'Th', 'Tmem119', 'Tph1', 'Tph2', 'Tuba', 'Tubb', 'Tubb3',
+#             'Uchl1', 'Vim']
 
-gene_list_neuromab = ['Adam11', 'Aldh1l1', 'Amigo1', 'Arx', 'Atp7a', 'Bdnf', 'Cacna1h', 'Cadm4', 'Calb1', 'Calb2', 'Clcn4', 'Cntnap1',
-                     'Dlg1', 'Dlg2', 'Dlg3', 'Dlg4', 'Drd2', 'Fgf13', 'Gabrb3', 'Gabre', 'Hspa9', 'Kcna1', 'Kcnd2', 'Lrp4',
-                     'Lrrk1', 'Lrrtm2', 'Lrrtm4', 'Mff', 'Mog', 'Nos1', 'Npy', 'Nrcam', 'Olfm1', 'Znf746', 'Pex5l', 'Qk',
-                     'Rbm17', 'Reep1', 'Reep2', 'Rufy3', 'S100a5', 'Shank1', 'Shank2', 'Shank3', 'Slc38a1', 'Snapin', 'Svop', 'Trpc4',
-                     'Vapa', 'Vdac1', 'Tpte']
+# gene_list_neuromab = ['Adam11', 'Aldh1l1', 'Amigo1', 'Arx', 'Atp7a', 'Bdnf', 'Cacna1h', 'Cadm4', 'Calb1', 'Calb2', 'Clcn4', 'Cntnap1',
+#                      'Dlg1', 'Dlg2', 'Dlg3', 'Dlg4', 'Drd2', 'Fgf13', 'Gabrb3', 'Gabre', 'Hspa9', 'Kcna1', 'Kcnd2', 'Lrp4',
+#                      'Lrrk1', 'Lrrtm2', 'Lrrtm4', 'Mff', 'Mog', 'Nos1', 'Npy', 'Nrcam', 'Olfm1', 'Znf746', 'Pex5l', 'Qk',
+#                      'Rbm17', 'Reep1', 'Reep2', 'Rufy3', 'S100a5', 'Shank1', 'Shank2', 'Shank3', 'Slc38a1', 'Snapin', 'Svop', 'Trpc4',
+#                      'Vapa', 'Vdac1', 'Tpte']
 
-excluded_genes = ['Col4a3/5/2/1', 'Eea5', 'Gad2/1', 'Gsk3a/b', 'Ins', 
-                  'Mapk8/9/10', 'Nefm/h', 'Prkca/b/g', 'Stx1a/1b/2/3', 
-                  'Tuba', 'Tubb', 'Znf746', 'Qki']
+# excluded_genes = ['Col4a3/5/2/1', 'Eea5', 'Gad2/1', 'Gsk3a/b', 'Ins', 
+#                   'Mapk8/9/10', 'Nefm/h', 'Prkca/b/g', 'Stx1a/1b/2/3', 
+#                   'Tuba', 'Tubb', 'Znf746', 'Qki']
 
-gene_list = [
-    gene for gene in (gene_list_otherVendors + gene_list_neuromab) 
-    if gene not in excluded_genes
-]
+# gene_list = [
+#     gene for gene in (gene_list_otherVendors + gene_list_neuromab) 
+#     if gene not in excluded_genes
+# ]
 
-avg_expression_div_df = avg_expression_genesAll_div_df[gene_list]
-avg_expression_class_df = avg_expression_genesAll_class_df[gene_list]
-avg_expression_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
-avg_expression_supertype_df = avg_expression_genesAll_supertype_df[gene_list]
+# avg_expression_div_df = avg_expression_genesAll_div_df[gene_list]
+# avg_expression_class_df = avg_expression_genesAll_class_df[gene_list]
+# avg_expression_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
+# avg_expression_supertype_df = avg_expression_genesAll_supertype_df[gene_list]
 
-gene_names = ['Arx', 'Vdac1', 'Reep1', 'Reep2', 'Actl6b', 'Abcc8', 'Abcc9', 'Clcn4','Aif1',
-             'Rbm17', 'Epm2a', 'Ocrl', 'Cd3e', 'Sox9', 'Sun2', 'Aldh5a1', 'Sox4',
-             'Tbr1', 'Tmem119', 'Tardbp', 'Ddx5', 'Rbbp4', 'Khdrbs1', 'Set', 'Dlg4', 'Gsk3a',
-             'Pecam1', 'Eea1', 'Lamp1', 'Cd68', 'Bdnf', 'Rbfox3', 'Sod2', 'Sun2','Calb1', 'Calb2','Pvalb', 'Qk', 'Gfap', 'Nos1']
+# # gene_names = ['Arx', 'Vdac1', 'Reep1', 'Reep2', 'Actl6b', 'Abcc8', 'Abcc9', 'Clcn4','Aif1',
+# #              'Rbm17', 'Epm2a', 'Ocrl', 'Cd3e', 'Sox9', 'Sun2', 'Aldh5a1', 'Sox4',
+# #              'Tbr1', 'Tmem119', 'Tardbp', 'Ddx5', 'Rbbp4', 'Khdrbs1', 'Set', 'Dlg4', 'Gsk3a',
+# #              'Pecam1', 'Eea1', 'Lamp1', 'Cd68', 'Bdnf', 'Rbfox3', 'Sod2', 'Sun2','Calb1', 'Calb2','Pvalb', 'Qk', 'Gfap', 'Nos1']
 
 ################################################################################################################
 
