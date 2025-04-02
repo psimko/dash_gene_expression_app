@@ -22,14 +22,14 @@ client = boto3.client('s3')
 
 # Set the values
 bucket_name = 'gene-app-mouse-data'
-key = '/data'
+#key = '/data'
 
 ################################################################################################################
 
 def read_file(bucket, key_value):
     try:
         s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket_name, Key=key_value)
+        obj = s3.get_object(Bucket=bucket, Key=key_value)
         df = pd.read_csv(obj['Body'])
         return df
     except ClientError as ex:
@@ -39,7 +39,7 @@ def read_file(bucket, key_value):
 def read_pickle(bucket, key_value):
     try:
         s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket_name, Key=key_value)
+        obj = s3.get_object(Bucket=bucket, Key=key_value)
         data = pickle.load(obj['Body'])
         return data
     except ClientError as ex:
