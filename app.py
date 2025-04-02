@@ -34,7 +34,13 @@ def read_file(bucket, key_value):
         return df
     except ClientError as ex:
         if ex.response['Error']['Code'] == 'NoSuchKey':
-            print("Key doesn't match. Please check the key value entered.")
+            print(f"[ERROR] No such key: {key_value}")
+        else:
+            print(f"[ERROR] AWS ClientError: {ex}")
+    except Exception as e:
+        print(f"[ERROR] Unexpected error reading CSV: {e}")
+    
+    return None  
 
 def read_pickle(bucket, key_value):
     try:
@@ -86,16 +92,20 @@ gene_list = [
     if gene not in excluded_genes
 ]
 
-avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
+avg_expression_genesAll_div_df = read_file(bucket_name, 'data/avg_expression_div_genesAll_notNormalized_df.csv')
+
+if avg_expression_genesAll_div_df is None:
+    raise RuntimeError("Failed to load avg_expression_genesAll_div_df — check if file exists in S3.")
+    
 avg_expression_genesAll_div_df = avg_expression_genesAll_div_df[gene_list]
 gc.collect()
-avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
+avg_expression_genesAll_class_df = read_file(bucket_name, 'data/avg_expression_class_genesAll_notNormalized_df.csv') 
 avg_expression_genesAll_class_df = avg_expression_genesAll_class_df[gene_list]
 gc.collect()
-avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')
+avg_expression_genesAll_subclass_df =  read_file(bucket_name, 'data/avg_expression_subclass_genesAll_notNormalized_df.csv')
 avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
 gc.collect()
-avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')  
+avg_expression_genesAll_supertype_df = read_file(bucket_name, 'data/avg_expression_supertypes_genesAll_notNormalized_df.csv')  
 avg_expression_genesAll_supertype_df = avg_expression_genesAll_supertype_df[gene_list]    
 gc.collect()
     
