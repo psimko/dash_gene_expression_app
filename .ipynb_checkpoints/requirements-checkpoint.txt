@@ -1,4 +1,4 @@
-abc_atlas_access==0.5.0
+#abc_atlas_access==0.5.0
 anndata==0.9.1
 annotated-types==0.7.0
 blinker==1.9.0
@@ -45,7 +45,6 @@ pip==23.1.2
 platformdirs==3.5.1
 plotly==6.0.0
 pooch==1.7.0
-psutil==7.0.0
 pydantic==2.10.6
 pydantic_core==2.27.2
 pynndescent==0.5.10
