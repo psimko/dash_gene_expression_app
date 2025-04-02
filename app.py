@@ -29,24 +29,24 @@ key = '/data'
 def read_file(bucket, key_value):
     try:
         s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket_name, Key=key)
+        obj = s3.get_object(Bucket=bucket_name, Key=key_value)
         df = pd.read_csv(obj['Body'])
         return df
     except ClientError as ex:
         if ex.response['Error']['Code'] == 'NoSuchKey':
             print("Key doesn't match. Please check the key value entered.")
-    except Exception as e:
-        print("Error during unpickling:", e)
 
 def read_pickle(bucket, key_value):
     try:
         s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket_name, Key=key)
+        obj = s3.get_object(Bucket=bucket_name, Key=key_value)
         data = pickle.load(obj['Body'])
         return data
     except ClientError as ex:
         if ex.response['Error']['Code'] == 'NoSuchKey':
             print("Key doesn't match. Please check the key value entered.")
+    except Exception as e:
+        print("Error during unpickling:", e)
     
 # Write the data
 # avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
