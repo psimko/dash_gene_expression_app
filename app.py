@@ -14,6 +14,7 @@ from dash import dcc, html, Input, Output, State
 import plotly.colors
 import matplotlib.colors as mcolors
 import boto3
+from botocore.exceptions import ClientError
 
 # Call the s3 bucket
 client = boto3.client('s3')
