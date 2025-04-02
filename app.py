@@ -49,10 +49,10 @@ def read_pickle(bucket, key_value):
             print("Key doesn't match. Please check the key value entered.")
     
 # Write the data
-avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
-avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
-avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')    
-avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
+# avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
+# avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
+# avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')    
+# avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
     
 ################################################################################################################ 
     
@@ -86,9 +86,16 @@ gene_list = [
     if gene not in excluded_genes
 ]
 
+avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
 avg_expression_genesAll_div_df = avg_expression_genesAll_div_df[gene_list]
+gc.collect()
+avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
 avg_expression_genesAll_class_df = avg_expression_genesAll_class_df[gene_list]
+gc.collect()
+avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')
 avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
+gc.collect()
+avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')  
 avg_expression_genesAll_supertype_df = avg_expression_genesAll_supertype_df[gene_list]    
 gc.collect()
     
