@@ -52,7 +52,6 @@ avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_express
 avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
     
     
-
 # Average expressions of genes in all taxonomy levels
 # #expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
 # avg_expression_genesAll_div_df = pd.read_csv('/data/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
@@ -77,7 +76,9 @@ supertype_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/su
 sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
 type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
 
-
+if sample_to_type is None:
+    raise RuntimeError("Failed to load pickle — returned None.")
+    
 # # Loading the dictionary from the file
 # with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
 #     class_to_division = pickle.load(file)
