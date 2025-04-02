@@ -13,15 +13,51 @@ import dash
 from dash import dcc, html, Input, Output, State
 import plotly.colors
 import matplotlib.colors as mcolors
+import boto3
+
+# Call the s3 bucket
+client = boto3.client('s3')
+
+# Set the values
+bucket_name = 'gene-app-mouse-data'
+key = '/data'
 
 ################################################################################################################
 
+def read_file(bucket, key_value):
+    try:
+        s3 = boto3.client('s3')
+        obj = s3.get_object(Bucket=bucket_name, Key=key)
+        df = pd.read_csv(obj['Body'])
+        return df
+    except ClientError as ex:
+        if ex.response['Error']['Code'] == 'NoSuchKey':
+            print("Key doesn't match. Please check the key value entered.")
+
+def read_pickle(bucket, key_value):
+    try:
+        s3 = boto3.client('s3')
+        obj = s3.get_object(Bucket=bucket_name, Key=key)
+        data = pickle.load(obj['Body'])
+        return data
+    except ClientError as ex:
+        if ex.response['Error']['Code'] == 'NoSuchKey':
+            print("Key doesn't match. Please check the key value entered.")
+    
+# Write the data
+avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
+avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
+avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')    
+avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
+    
+    
+
 # Average expressions of genes in all taxonomy levels
-#expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
-avg_expression_genesAll_div_df = pd.read_csv('/data/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_class_df = pd.read_csv('/data/avg_expression_class_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_subclass_df = pd.read_csv('/data/avg_expression_subclass_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_supertype_df = pd.read_csv('/data/avg_expression_supertypes_genesAll_notNormalized_df.csv', index_col=0)
+# #expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
+# avg_expression_genesAll_div_df = pd.read_csv('/data/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
+# avg_expression_genesAll_class_df = pd.read_csv('/data/avg_expression_class_genesAll_notNormalized_df.csv', index_col=0)
+# avg_expression_genesAll_subclass_df = pd.read_csv('/data/avg_expression_subclass_genesAll_notNormalized_df.csv', index_col=0)
+# avg_expression_genesAll_supertype_df = pd.read_csv('/data/avg_expression_supertypes_genesAll_notNormalized_df.csv', index_col=0)
 
 # Load binarized expressions
 # with open('/bil/users/psimko/holis/clustering/2025_holis_analysis/expression_cells_bin_df.pickle', 'rb') as file:
@@ -30,33 +66,44 @@ avg_expression_genesAll_supertype_df = pd.read_csv('/data/avg_expression_superty
 
 # Import taxonomy dictionaries if needed
 
-# Loading the dictionary from the file
-with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
-    class_to_division = pickle.load(file)
+class_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_division.pkl')
+division_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/division_to_class.pkl')
+subclass_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_class.pkl')
+class_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_subclass.pkl')
+subclass_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_division.pkl')
+subclass_to_supertype = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_supertype.pkl')
+supertype_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/supertype_to_subclass.pkl')
+sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
+type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
+
+
+# # Loading the dictionary from the file
+# with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
+#     class_to_division = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/division_to_class.pkl', 'rb') as file:
-    division_to_class = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/division_to_class.pkl', 'rb') as file:
+#     division_to_class = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/subclass_to_class.pkl', 'rb') as file:
-    subclass_to_class = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/subclass_to_class.pkl', 'rb') as file:
+#     subclass_to_class = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/class_to_subclass.pkl', 'rb') as file:
-    class_to_subclass = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/class_to_subclass.pkl', 'rb') as file:
+#     class_to_subclass = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/subclass_to_division.pkl', 'rb') as file:
-    subclass_to_division = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/subclass_to_division.pkl', 'rb') as file:
+#     subclass_to_division = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/subclass_to_supertype.pkl', 'rb') as file:
-    subclass_to_supertype = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/subclass_to_supertype.pkl', 'rb') as file:
+#     subclass_to_supertype = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/supertype_to_subclass.pkl', 'rb') as file:
-    supertype_to_subclass = pickle.load(file)
+# with open('/data/taxonomy_dictionaries/supertype_to_subclass.pkl', 'rb') as file:
+#     supertype_to_subclass = pickle.load(file)
     
-with open('/data/taxonomy_dictionaries/sample_to_type.pkl', 'rb') as file:
-    sample_to_type = pickle.load(file) 
+# with open('/data/taxonomy_dictionaries/sample_to_type.pkl', 'rb') as file:
+#     sample_to_type = pickle.load(file) 
     
-with open('/data/taxonomy_dictionaries/type_to_subclass.pkl', 'rb') as file:
-    type_to_subclass = pickle.load(file)   
+# with open('/data/taxonomy_dictionaries/type_to_subclass.pkl', 'rb') as file:
+#     type_to_subclass = pickle.load(file)   
     
 sample_to_subclass = {
     sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
