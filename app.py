@@ -16,6 +16,7 @@ import matplotlib.colors as mcolors
 import boto3
 from botocore.exceptions import ClientError
 import gc
+import psutil
 
 # Call the s3 bucket
 client = boto3.client('s3')
@@ -25,6 +26,11 @@ bucket_name = 'gene-app-mouse-data'
 #key = '/data'
 
 ################################################################################################################
+
+def print_memory_usage(tag=""):
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / 1024 / 1024  # In MB
+    print(f"[Memory] {tag} - {mem:.2f} MB")
 
 def read_file(bucket, key_value):
     try:
@@ -93,21 +99,24 @@ gene_list = [
 ]
 
 avg_expression_genesAll_div_df = read_file(bucket_name, 'data/avg_expression_div_genesAll_notNormalized_df.csv')
-
-if avg_expression_genesAll_div_df is None:
-    raise RuntimeError("Failed to load avg_expression_genesAll_div_df — check if file exists in S3.")
-    
 avg_expression_genesAll_div_df = avg_expression_genesAll_div_df[gene_list]
 gc.collect()
+print_memory_usage("After loading avg_expression_genesAll_div_df")
+
 avg_expression_genesAll_class_df = read_file(bucket_name, 'data/avg_expression_class_genesAll_notNormalized_df.csv') 
 avg_expression_genesAll_class_df = avg_expression_genesAll_class_df[gene_list]
 gc.collect()
+print_memory_usage("After loading avg_expression_genesAll_class_df")
+
 avg_expression_genesAll_subclass_df =  read_file(bucket_name, 'data/avg_expression_subclass_genesAll_notNormalized_df.csv')
 avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
 gc.collect()
+print_memory_usage("After loading avg_expression_genesAll_subclass_df")
+
 avg_expression_genesAll_supertype_df = read_file(bucket_name, 'data/avg_expression_supertypes_genesAll_notNormalized_df.csv')  
 avg_expression_genesAll_supertype_df = avg_expression_genesAll_supertype_df[gene_list]    
 gc.collect()
+print_memory_usage("After loading avg_expression_genesAll_supertype_df")
     
     
 ################################################################################################################
@@ -129,7 +138,9 @@ sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to
 
 if sample_to_type is None:
     raise RuntimeError("Failed to load pickle — returned None.")
-
+    
+print_memory_usage("After loading sample_to_type")
+    
 sample_to_subclass = {
     sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
     if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
@@ -138,6 +149,8 @@ sample_to_subclass = {
 
 del sample_to_type
 gc.collect()
+
+print_memory_usage("After loading sample_to_subclass and del sample_to_type.")
 
 class_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_division.pkl')
 division_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/division_to_class.pkl')
