@@ -134,23 +134,21 @@ print_memory_usage("After loading avg_expression_genesAll_supertype_df")
 
 # Import taxonomy dictionaries if needed
 
-sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
+# sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
 
-if sample_to_type is None:
-    raise RuntimeError("Failed to load pickle — returned None.")
+# if sample_to_type is None:
+#     raise RuntimeError("Failed to load pickle — returned None.")
     
-print_memory_usage("After loading sample_to_type")
+# print_memory_usage("After loading sample_to_type")
     
-sample_to_subclass = {
-    sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
-    if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
-    for sample, sample_types in sample_to_type.items()
-}
+# sample_to_subclass = {
+#     sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
+#     if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
+#     for sample, sample_types in sample_to_type.items()
+# }
 
-del sample_to_type
-gc.collect()
-
-print_memory_usage("After loading sample_to_subclass and del sample_to_type.")
+# del sample_to_type
+# gc.collect()
 
 class_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_division.pkl')
 division_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/division_to_class.pkl')
@@ -159,7 +157,8 @@ class_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_
 subclass_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_division.pkl')
 subclass_to_supertype = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_supertype.pkl')
 supertype_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/supertype_to_subclass.pkl')
-type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
+#type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
+sample_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_subclass.pkl')
     
 # # Loading the dictionary from the file
 # with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
