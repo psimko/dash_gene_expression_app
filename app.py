@@ -201,15 +201,15 @@ sample_to_division = {
     sample: class_to_division.get(cls, None) for sample, cls in sample_to_class.items()
 }
 
-class_to_supertype = {}
+# class_to_supertype = {}
 
-for cls, subclasses in class_to_subclass.items():
-    supertypes = set()  # Use a set to avoid duplicate supertypes
-    for sub in subclasses:
-        if sub in subclass_to_supertype.keys():  # Check if subclass has an assigned supertype
-            supertypes.update(subclass_to_supertype[sub])  # Add all supertypes from subclass
+# for cls, subclasses in class_to_subclass.items():
+#     supertypes = set()  # Use a set to avoid duplicate supertypes
+#     for sub in subclasses:
+#         if sub in subclass_to_supertype.keys():  # Check if subclass has an assigned supertype
+#             supertypes.update(subclass_to_supertype[sub])  # Add all supertypes from subclass
     
-    class_to_supertype[cls] = list(supertypes)
+#     class_to_supertype[cls] = list(supertypes)
     
 ################################################################################################################
     
