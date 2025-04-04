@@ -45,6 +45,7 @@ pip==23.1.2
 platformdirs==3.5.1
 plotly==6.0.0
 pooch==1.7.0
+psutil==7.0.0
 pydantic==2.10.6
 pydantic_core==2.27.2
 pynndescent==0.5.10

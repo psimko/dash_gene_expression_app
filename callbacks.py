@@ -1,389 +1,32 @@
-#Imports
-import os
+import dash
+from dash import callback, dcc, html, Input, Output, State
+import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-from numpy import inf
-import matplotlib.pyplot as plt
-import pickle
-import plotly.graph_objects as go
+from app_context import * 
 from plotly.subplots import make_subplots
 import plotly.express as px
-import flask
-import dash
-from dash import dcc, html, Input, Output, State
 import plotly.colors
 import matplotlib.colors as mcolors
-import boto3
-from botocore.exceptions import ClientError
-import gc
-import psutil
-
-# Call the s3 bucket
-client = boto3.client('s3')
-
-# Set the values
-bucket_name = 'gene-app-mouse-data'
-#key = '/data'
+import matplotlib.pyplot as plt
+from numpy import inf
 
 ################################################################################################################
-
-def print_memory_usage(tag=""):
-    process = psutil.Process(os.getpid())
-    mem = process.memory_info().rss / 1024 / 1024  # In MB
-    print(f"[Memory] {tag} - {mem:.2f} MB")
-
-def read_file(bucket, key_value):
-    try:
-        s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket, Key=key_value)
-        df = pd.read_csv(obj['Body'])
-        return df
-    except ClientError as ex:
-        if ex.response['Error']['Code'] == 'NoSuchKey':
-            print(f"[ERROR] No such key: {key_value}")
-        else:
-            print(f"[ERROR] AWS ClientError: {ex}")
-    except Exception as e:
-        print(f"[ERROR] Unexpected error reading CSV: {e}")
-    
-    return None  
-
-def read_pickle(bucket, key_value):
-    try:
-        s3 = boto3.client('s3')
-        obj = s3.get_object(Bucket=bucket, Key=key_value)
-        data = pickle.load(obj['Body'])
-        return data
-    except ClientError as ex:
-        if ex.response['Error']['Code'] == 'NoSuchKey':
-            print("Key doesn't match. Please check the key value entered.")
-    except Exception as e:
-        print("Error during unpickling:", e)
-    
-# Write the data
-# avg_expression_genesAll_div_df = read_file(bucket_name, '/data/avg_expression_div_genesAll_notNormalized_df.csv')
-# avg_expression_genesAll_class_df = read_file(bucket_name, '/data/avg_expression_class_genesAll_notNormalized_df.csv') 
-# avg_expression_genesAll_subclass_df =  read_file(bucket_name, '/data/avg_expression_subclass_genesAll_notNormalized_df.csv')    
-# avg_expression_genesAll_supertype_df = read_file(bucket_name, '/data/avg_expression_supertypes_genesAll_notNormalized_df.csv')       
-    
-################################################################################################################ 
-    
-
-# Pick standard genes from expression_df and the average expression files
-
-# If you want to test only genes from a list use this
-gene_list_otherVendors = ['Acta2', 'Adgre1', 'Abcc8', 'Abcc9', 'Actl6b', 'Aif1', 'Akap5', 'Aldh5a1', 'App', 'Aqp1', 'Aqp4', 'Arg1', 'Bcl11b', 'Calca',
-            'Ccnd1', 'Cd247', 'Cd3e', 'Cd4', 'Cd5', 'Cd68', 'Cd86', 'Cd8a', 'Cdh1', 'Chat', 'Cnp', 'Cntnap1', 'Cntnap2', 'Col4a3/5/2/1',
-            'Creb1', 'Cspg4', 'Ctnnb1', 'Dbh', 'Dcx', 'Ddx5', 'Dlg2', 'Eea1', 'Eea5', 'Egr1', 'Emcn', 'Epm2a', 'Ewsr1', 'Fn1', 'Foxa2', 'Gad1', 'Gad2',
-            'Gad2/1', 'Gap43', 'Gfap', 'Gria2', 'Grin1', 'Grm2', 'Gsk3a', 'Gsk3a/b', 'Gucy1b1', 'Hcls1', 'Hopx', 'Htr2b', 'Htr7', 'Il10', 'Ins',
-            'Itgam', 'Itgax', 'Khdrbs1', 'Lamp1', 'Lyve1', 'Mag', 'Maoa', 'Maob', 'Map2', 'Mapk3', 'Mapk8/9/10', 'Mapt', 'Mbp', 'Mki67', 'Mog',
-            'Mrc1', 'Myb', 'Ncam1', 'Nefh', 'Nefl', 'Nefm', 'Nefm/h', 'Nfasc', 'Nfatc1', 'Nos1', 'Nos3', 'Npy', 'Nr3c2', 'Nrp1', 'Ntrk3', 'Ocrl', 'Oxt',
-            'P2rx4', 'P2ry12', 'Pax6', 'Pax7', 'Pdgfrb', 'Pecam1', 'Plp1', 'Ppp1r1b', 'Prkca/b/g', 'Pvalb', 'Pycard', 'Rbbp4', 'Rbfox3', 'S100a10',
-            'S100b', 'Satb2', 'Sdc4', 'Sdk2', 'Set', 'Sirt3', 'Slc1a2', 'Slc1a3', 'Slc6a3', 'Slc6a4', 'Snca', 'Sod2', 'Sox2', 'Sox4', 'Sox9', 'Sst',
-            'Stat1', 'Stx1a', 'Stx1a/1b/2/3', 'Sun2', 'Syn1', 'Syn2', 'Syp', 'Tardbp', 'Tbr1', 'Th', 'Tmem119', 'Tph1', 'Tph2', 'Tuba', 'Tubb', 'Tubb3',
-            'Uchl1', 'Vim']
-
-gene_list_neuromab = ['Adam11', 'Aldh1l1', 'Amigo1', 'Arx', 'Atp7a', 'Bdnf', 'Cacna1h', 'Cadm4', 'Calb1', 'Calb2', 'Clcn4', 'Cntnap1',
-                     'Dlg1', 'Dlg2', 'Dlg3', 'Dlg4', 'Drd2', 'Fgf13', 'Gabrb3', 'Gabre', 'Hspa9', 'Kcna1', 'Kcnd2', 'Lrp4',
-                     'Lrrk1', 'Lrrtm2', 'Lrrtm4', 'Mff', 'Mog', 'Nos1', 'Npy', 'Nrcam', 'Olfm1', 'Znf746', 'Pex5l', 'Qk',
-                     'Rbm17', 'Reep1', 'Reep2', 'Rufy3', 'S100a5', 'Shank1', 'Shank2', 'Shank3', 'Slc38a1', 'Snapin', 'Svop', 'Trpc4',
-                     'Vapa', 'Vdac1', 'Tpte']
-
-excluded_genes = ['Col4a3/5/2/1', 'Eea5', 'Gad2/1', 'Gsk3a/b', 'Ins', 
-                  'Mapk8/9/10', 'Nefm/h', 'Prkca/b/g', 'Stx1a/1b/2/3', 
-                  'Tuba', 'Tubb', 'Znf746', 'Qki']
-
-gene_list = [
-    gene for gene in (gene_list_otherVendors + gene_list_neuromab) 
-    if gene not in excluded_genes
-]
-
-avg_expression_genesAll_div_df = read_file(bucket_name, 'data/avg_expression_div_genesAll_notNormalized_df.csv')
-avg_expression_genesAll_div_df = avg_expression_genesAll_div_df[gene_list]
-gc.collect()
-print_memory_usage("After loading avg_expression_genesAll_div_df")
-
-avg_expression_genesAll_class_df = read_file(bucket_name, 'data/avg_expression_class_genesAll_notNormalized_df.csv') 
-avg_expression_genesAll_class_df = avg_expression_genesAll_class_df[gene_list]
-gc.collect()
-print_memory_usage("After loading avg_expression_genesAll_class_df")
-
-avg_expression_genesAll_subclass_df =  read_file(bucket_name, 'data/avg_expression_subclass_genesAll_notNormalized_df.csv')
-avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
-gc.collect()
-print_memory_usage("After loading avg_expression_genesAll_subclass_df")
-
-avg_expression_genesAll_supertype_df = read_file(bucket_name, 'data/avg_expression_supertypes_genesAll_notNormalized_df.csv')  
-avg_expression_genesAll_supertype_df = avg_expression_genesAll_supertype_df[gene_list]    
-gc.collect()
-print_memory_usage("After loading avg_expression_genesAll_supertype_df")
-    
-    
-################################################################################################################
-# Average expressions of genes in all taxonomy levels
-# #expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
-# avg_expression_genesAll_div_df = pd.read_csv('/data/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
-# avg_expression_genesAll_class_df = pd.read_csv('/data/avg_expression_class_genesAll_notNormalized_df.csv', index_col=0)
-# avg_expression_genesAll_subclass_df = pd.read_csv('/data/avg_expression_subclass_genesAll_notNormalized_df.csv', index_col=0)
-# avg_expression_genesAll_supertype_df = pd.read_csv('/data/avg_expression_supertypes_genesAll_notNormalized_df.csv', index_col=0)
-
-# Load binarized expressions
-# with open('/bil/users/psimko/holis/clustering/2025_holis_analysis/expression_cells_bin_df.pickle', 'rb') as file:
-#     expression_cells_bin_df_copy = pickle.load(file)
+##### Helper functions (can be moved to utils later)
 ################################################################################################################
 
-# Import taxonomy dictionaries if needed
-
-# sample_to_type = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_type.pkl')
-
-# if sample_to_type is None:
-#     raise RuntimeError("Failed to load pickle — returned None.")
-    
-# print_memory_usage("After loading sample_to_type")
-    
-# sample_to_subclass = {
-#     sample: [type_to_subclass.get(sample_type, None) for sample_type in sample_types]
-#     if isinstance(sample_types, list) else type_to_subclass.get(sample_types, None)
-#     for sample, sample_types in sample_to_type.items()
-# }
-
-# del sample_to_type
-# gc.collect()
-
-class_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_division.pkl')
-division_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/division_to_class.pkl')
-subclass_to_class = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_class.pkl')
-class_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/class_to_subclass.pkl')
-subclass_to_division = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_division.pkl')
-subclass_to_supertype = read_pickle(bucket_name, '/data/taxonomy_dictionaries/subclass_to_supertype.pkl')
-supertype_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/supertype_to_subclass.pkl')
-#type_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/type_to_subclass.pkl')
-sample_to_subclass = read_pickle(bucket_name, '/data/taxonomy_dictionaries/sample_to_subclass.pkl')
-    
-# # Loading the dictionary from the file
-# with open('/data/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
-#     class_to_division = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/division_to_class.pkl', 'rb') as file:
-#     division_to_class = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/subclass_to_class.pkl', 'rb') as file:
-#     subclass_to_class = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/class_to_subclass.pkl', 'rb') as file:
-#     class_to_subclass = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/subclass_to_division.pkl', 'rb') as file:
-#     subclass_to_division = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/subclass_to_supertype.pkl', 'rb') as file:
-#     subclass_to_supertype = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/supertype_to_subclass.pkl', 'rb') as file:
-#     supertype_to_subclass = pickle.load(file)
-    
-# with open('/data/taxonomy_dictionaries/sample_to_type.pkl', 'rb') as file:
-#     sample_to_type = pickle.load(file) 
-    
-# with open('/data/taxonomy_dictionaries/type_to_subclass.pkl', 'rb') as file:
-#     type_to_subclass = pickle.load(file)   
-   
-
-# Flatten lists where applicable
-sample_to_subclass = {k: v if isinstance(v, str) else v[0] for k, v in sample_to_subclass.items() if v}
-
-# Repeat for classes and divisions
-sample_to_class = {
-    sample: subclass_to_class.get(sub, None) for sample, sub in sample_to_subclass.items()
-}
-
-sample_to_division = {
-    sample: class_to_division.get(cls, None) for sample, cls in sample_to_class.items()
-}
-
-# class_to_supertype = {}
-
-# for cls, subclasses in class_to_subclass.items():
-#     supertypes = set()  # Use a set to avoid duplicate supertypes
-#     for sub in subclasses:
-#         if sub in subclass_to_supertype.keys():  # Check if subclass has an assigned supertype
-#             supertypes.update(subclass_to_supertype[sub])  # Add all supertypes from subclass
-    
-#     class_to_supertype[cls] = list(supertypes)
-    
-################################################################################################################
-    
 # Function to convert row values to a binary string
 def row_to_binary(row):
     return ''.join(map(str, row))
 
 def binary_to_decimal(binary_str):
     return int(binary_str, 2)
-                                            
-################################################################################################################
-
-# # Pick standard genes from expression_df and the average expression files
-
-# # If you want to test only genes from a list use this
-# gene_list_otherVendors = ['Acta2', 'Adgre1', 'Abcc8', 'Abcc9', 'Actl6b', 'Aif1', 'Akap5', 'Aldh5a1', 'App', 'Aqp1', 'Aqp4', 'Arg1', 'Bcl11b', 'Calca',
-#             'Ccnd1', 'Cd247', 'Cd3e', 'Cd4', 'Cd5', 'Cd68', 'Cd86', 'Cd8a', 'Cdh1', 'Chat', 'Cnp', 'Cntnap1', 'Cntnap2', 'Col4a3/5/2/1',
-#             'Creb1', 'Cspg4', 'Ctnnb1', 'Dbh', 'Dcx', 'Ddx5', 'Dlg2', 'Eea1', 'Eea5', 'Egr1', 'Emcn', 'Epm2a', 'Ewsr1', 'Fn1', 'Foxa2', 'Gad1', 'Gad2',
-#             'Gad2/1', 'Gap43', 'Gfap', 'Gria2', 'Grin1', 'Grm2', 'Gsk3a', 'Gsk3a/b', 'Gucy1b1', 'Hcls1', 'Hopx', 'Htr2b', 'Htr7', 'Il10', 'Ins',
-#             'Itgam', 'Itgax', 'Khdrbs1', 'Lamp1', 'Lyve1', 'Mag', 'Maoa', 'Maob', 'Map2', 'Mapk3', 'Mapk8/9/10', 'Mapt', 'Mbp', 'Mki67', 'Mog',
-#             'Mrc1', 'Myb', 'Ncam1', 'Nefh', 'Nefl', 'Nefm', 'Nefm/h', 'Nfasc', 'Nfatc1', 'Nos1', 'Nos3', 'Npy', 'Nr3c2', 'Nrp1', 'Ntrk3', 'Ocrl', 'Oxt',
-#             'P2rx4', 'P2ry12', 'Pax6', 'Pax7', 'Pdgfrb', 'Pecam1', 'Plp1', 'Ppp1r1b', 'Prkca/b/g', 'Pvalb', 'Pycard', 'Rbbp4', 'Rbfox3', 'S100a10',
-#             'S100b', 'Satb2', 'Sdc4', 'Sdk2', 'Set', 'Sirt3', 'Slc1a2', 'Slc1a3', 'Slc6a3', 'Slc6a4', 'Snca', 'Sod2', 'Sox2', 'Sox4', 'Sox9', 'Sst',
-#             'Stat1', 'Stx1a', 'Stx1a/1b/2/3', 'Sun2', 'Syn1', 'Syn2', 'Syp', 'Tardbp', 'Tbr1', 'Th', 'Tmem119', 'Tph1', 'Tph2', 'Tuba', 'Tubb', 'Tubb3',
-#             'Uchl1', 'Vim']
-
-# gene_list_neuromab = ['Adam11', 'Aldh1l1', 'Amigo1', 'Arx', 'Atp7a', 'Bdnf', 'Cacna1h', 'Cadm4', 'Calb1', 'Calb2', 'Clcn4', 'Cntnap1',
-#                      'Dlg1', 'Dlg2', 'Dlg3', 'Dlg4', 'Drd2', 'Fgf13', 'Gabrb3', 'Gabre', 'Hspa9', 'Kcna1', 'Kcnd2', 'Lrp4',
-#                      'Lrrk1', 'Lrrtm2', 'Lrrtm4', 'Mff', 'Mog', 'Nos1', 'Npy', 'Nrcam', 'Olfm1', 'Znf746', 'Pex5l', 'Qk',
-#                      'Rbm17', 'Reep1', 'Reep2', 'Rufy3', 'S100a5', 'Shank1', 'Shank2', 'Shank3', 'Slc38a1', 'Snapin', 'Svop', 'Trpc4',
-#                      'Vapa', 'Vdac1', 'Tpte']
-
-# excluded_genes = ['Col4a3/5/2/1', 'Eea5', 'Gad2/1', 'Gsk3a/b', 'Ins', 
-#                   'Mapk8/9/10', 'Nefm/h', 'Prkca/b/g', 'Stx1a/1b/2/3', 
-#                   'Tuba', 'Tubb', 'Znf746', 'Qki']
-
-# gene_list = [
-#     gene for gene in (gene_list_otherVendors + gene_list_neuromab) 
-#     if gene not in excluded_genes
-# ]
-
-# avg_expression_div_df = avg_expression_genesAll_div_df[gene_list]
-# avg_expression_class_df = avg_expression_genesAll_class_df[gene_list]
-# avg_expression_subclass_df = avg_expression_genesAll_subclass_df[gene_list]
-# avg_expression_supertype_df = avg_expression_genesAll_supertype_df[gene_list]
-
-# # gene_names = ['Arx', 'Vdac1', 'Reep1', 'Reep2', 'Actl6b', 'Abcc8', 'Abcc9', 'Clcn4','Aif1',
-# #              'Rbm17', 'Epm2a', 'Ocrl', 'Cd3e', 'Sox9', 'Sun2', 'Aldh5a1', 'Sox4',
-# #              'Tbr1', 'Tmem119', 'Tardbp', 'Ddx5', 'Rbbp4', 'Khdrbs1', 'Set', 'Dlg4', 'Gsk3a',
-# #              'Pecam1', 'Eea1', 'Lamp1', 'Cd68', 'Bdnf', 'Rbfox3', 'Sod2', 'Sun2','Calb1', 'Calb2','Pvalb', 'Qk', 'Gfap', 'Nos1']
 
 ################################################################################################################
-
-#genes_to_test = ['Rbfox3','Aif1','Nos1', 'Aldh5a1', 'Rbfox3', 'Arx', 'Calb1']
-
+##### Callback decorator
 ################################################################################################################
 
-divisions = avg_expression_genesAll_div_df.index.values
-
-neuronal_divs = divisions[0:4]
-nonNeuronal_divs = divisions[4:]
-
-# classes = avg_expression_genesAll_class_df.index.values
-# subclasses = avg_expression_genesAll_subclass_df.index.values
-
-neuronal_classes = [cls for d in neuronal_divs for cls in division_to_class.get(d, [])]
-nonNeuronal_classes = [cls for d in nonNeuronal_divs for cls in division_to_class.get(d, [])]
-
-division_colors = px.colors.qualitative.Set1 
-
-subclass_sample_counts = {subclass: sum(1 for s in sample_to_subclass.values() if s == subclass) for subclass in avg_expression_subclass_df.index}
-class_sample_counts = {cls: sum(1 for s in sample_to_class.values() if s == cls) for cls in avg_expression_class_df.index}
-division_sample_counts = {div: sum(class_sample_counts.get(cls, 0) for cls in division_to_class.get(div, [])) for div in avg_expression_div_df.index}
-
-neuronal_sample_count = sum(1 for div in sample_to_division.values() if div in neuronal_divs)
-nonNeuronal_sample_count = sum(1 for div in sample_to_division.values() if div in nonNeuronal_divs)
-
-################################################################################################################
-
-
-################################################################################################################
-
-app = dash.Dash(__name__)
-
-# fig = go.Figure()
-# fig_bin = go.Figure()
-# fig_trin = go.Figure()
-
-# app.layout = html.Div([
-#     html.H1("Gene Expression", style={'textAlign': 'center'}),
-
-#     html.Label("Enter genes (comma-separated):"),
-#     dcc.Input(id='gene-input', type='text', value='Aif1', debounce=True, style={'width': '100%'}),
-
-#     html.Button('Update Plot', id='update-button', n_clicks=0),
-    
-#     # Toggle for switching between binary and trinary plots
-#         dcc.Checklist(
-#             id='toggle-trinary',
-#             options=[{'label': 'Show Trinarized Plot', 'value': 'trinary'}],
-#             value=[],  # Default is empty (not checked)
-#             style={'marginTop': '10px'}
-#         ),
-    
-#     html.Div([
-#         html.Div([
-#             dcc.Graph(id='sunburst1'),
-#             dcc.Graph(id='sunburst2')
-#         ], style={'display': 'inline-block', 'width': '48%', 'verticalAlign': 'top'}),
-
-#         html.Div(id='gene-bar-plots', style={'display': 'inline-block', 'width': '50%', 'verticalAlign': 'top', 'paddingLeft': '2%'})       
-#     ], style={'display': 'flex', 'justify-content': 'space-between', 'marginTop': '20px'})
-# ])
-
-app.layout = html.Div([
-    html.H1("Gene Expression", style={'textAlign': 'center'}),
-    
-    # Stores for precomputed figures (hidden storage)
-    dcc.Store(id='store-fig-bin'),
-    dcc.Store(id='store-fig-trin'),
-
-    html.Label("Enter genes (comma-separated):"),
-    dcc.Input(id='gene-input', type='text', value='Aif1, Gfap', debounce=True, style={'width': '100%'}),
-
-    html.Div([
-    html.Button('Update Plot', id='update-button', n_clicks=0)
-    ], id="button-container"),
-    
-    html.Div([  
-        # First Sunburst Plot
-        html.Div([
-            dcc.Graph(id='sunburst1', style={'height': '600px'})  # Fixed height for consistency
-        ], style={'display': 'inline-block', 'width': '48%', 'position': 'relative', 'verticalAlign': 'top'}),
-
-        # Second Sunburst Plot with Toggle Overlayed
-        html.Div([
-            # Toggle Positioned Over the Graph (Absolute Positioning)
-            html.Div([
-                dcc.Checklist(
-                    id='toggle-trinary',
-                    options=[{'label': ' Show Trinarized Plot', 'value': 'trinary'}],
-                    value=[],
-                    style={'textAlign': 'left'}
-                )
-            ], style={'position': 'absolute', 'top': '0px', 'left': '0px', 'zIndex': '10'}),  
-
-            dcc.Graph(id='sunburst2', style={'height': '600px'})  # Match first sunburst
-        ], style={'display': 'inline-block', 'width': '48%', 'position': 'relative', 'verticalAlign': 'top'})
-
-    ], style={'display': 'flex', 'justify-content': 'space-between', 'alignItems': 'center', 'marginTop': '20px'}),
-
-#     html.Div([
-#         html.Div([
-#             dcc.Graph(id='sunburst1')
-#         ], style={'display': 'inline-block', 'width': '48%', 'verticalAlign': 'top'}),
-
-#         html.Div([
-#             dcc.Checklist(
-#                 id='toggle-trinary',
-#                 options=[{'label': ' Show Trinarized Plot', 'value': 'trinary'}],
-#                 value=[],  # Default is unchecked
-#                 style={'marginBottom': '10px'}
-#             ),
-#             style={'position': 'absolute', 'top': '0px', 'right': '10px'}
-#             dcc.Graph(id='sunburst2')  # The figure affected by the toggle
-#         ], style={'display': 'inline-block', 'width': '48%', 'verticalAlign': 'top'}),
-
-#     ], style={'display': 'flex', 'justify-content': 'space-between', 'marginTop': '20px'}),
-
-     html.Div(id='gene-bar-plots', style={'marginTop': '20px'})
-])
-
-
-@app.callback(
+@callback(
     [Output('sunburst1', 'figure'),
      Output('sunburst2', 'figure'),
      Output('gene-bar-plots', 'children'),
@@ -396,6 +39,11 @@ app.layout = html.Div([
      State('store-fig-trin', 'data')]
 )
 
+################################################################################################################
+##### Actual callback
+################################################################################################################
+
+                                   
 def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_fig_trin):
     ctx = dash.callback_context  # Identifies what triggered the callback
     bar_plots = []
@@ -421,6 +69,10 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         avg_expression_class_df = avg_expression_genesAll_class_df[genes_to_test]
         avg_expression_subclass_df = avg_expression_genesAll_subclass_df[genes_to_test]
         avg_expression_supertype_df = avg_expression_genesAll_supertype_df[genes_to_test]
+        
+        ################################################################################################################
+        ##### Sunburst 1 - expression (% of expressed supertypes in subclasses for given genes)
+        ################################################################################################################
 
         data_neuronal = []
         data_nonNeuronal = []
@@ -509,6 +161,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         fig.update_traces(marker=dict(line=dict(width=0.1, color='black')))
 
         ################################################################################################################
+        ##### Sunburst 2 - binary
         ################################################################################################################
 
         # fig_to_use = fig_trin if 'trinary' in toggle_value else fig_bin
@@ -624,8 +277,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         fig_bin.update_traces(marker=dict(line=dict(width=0.1, color='black')))
 
         ################################################################################################################
+        ##### Sunburst 2 - trinary
         ################################################################################################################
-
 
         # avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[genes_to_test]
 
@@ -738,6 +391,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         fig_trin.update_traces(marker=dict(line=dict(width=0.1, color='black')))
 
         ################################################################################################################
+        ##### Bar plots - expression level in classes
         ################################################################################################################
 
         unique_divisions = avg_expression_genesAll_div_df.index
@@ -839,6 +493,3 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
     ################################################################################################################
     ################################################################################################################
-
-if __name__ == '__main__':
-    app.run_server(host="0.0.0.0", port=8050, debug=False)
