@@ -14,17 +14,19 @@ from dash import dcc, html, Input, Output, State
 import plotly.colors
 import matplotlib.colors as mcolors
 import layout
+from local_config import DATA_PATH
+from local_config import DICTIONARIES_PATH
 #import callbacks
 
 ################################################################################################################
 ##### Import average gene expression data for all taxonomy levels
 ################################################################################################################
 
-#expression_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/expression_df_types.csv', index_col=0)
-avg_expression_genesAll_div_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/avg_expression_div_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_class_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/avg_expression_class_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_subclass_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/avg_expression_subclass_genesAll_notNormalized_df.csv', index_col=0)
-avg_expression_genesAll_supertype_df = pd.read_csv('/bil/users/psimko/holis/transcriptomic_analysis/avg_expression_supertypes_genesAll_notNormalized_df.csv', index_col=0)
+#expression_df = pd.read_csv(os.path.join(DATA_PATH, 'expression_df_types.csv'), index_col=0)
+avg_expression_genesAll_div_df = pd.read_csv(os.path.join(DATA_PATH,'avg_expression_div_genesAll_notNormalized_df.csv'), index_col=0)
+avg_expression_genesAll_class_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_class_genesAll_notNormalized_df.csv'), index_col=0)
+avg_expression_genesAll_subclass_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_subclass_genesAll_notNormalized_df.csv'), index_col=0)
+avg_expression_genesAll_supertype_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_supertypes_genesAll_notNormalized_df.csv'), index_col=0)
 
 # Load binarized expressions
 # with open('/bil/users/psimko/holis/clustering/2025_holis_analysis/expression_cells_bin_df.pickle', 'rb') as file:
@@ -34,43 +36,43 @@ avg_expression_genesAll_supertype_df = pd.read_csv('/bil/users/psimko/holis/tran
 ##### Import taxonomy dictionaries 
 ################################################################################################################
 
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/class_to_division.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH,'class_to_division.pkl'), 'rb') as file:
     class_to_division = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/division_to_class.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'division_to_class.pkl'), 'rb') as file:
     division_to_class = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/subclass_to_class.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'subclass_to_class.pkl'), 'rb') as file:
     subclass_to_class = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/class_to_subclass.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'class_to_subclass.pkl'), 'rb') as file:
     class_to_subclass = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/subclass_to_division.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'subclass_to_division.pkl'), 'rb') as file:
     subclass_to_division = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/subclass_to_supertype.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'subclass_to_supertype.pkl'), 'rb') as file:
     subclass_to_supertype = pickle.load(file)
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/supertype_to_subclass.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'supertype_to_subclass.pkl'), 'rb') as file:
     supertype_to_subclass = pickle.load(file)
-    
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/sample_to_type.pkl', 'rb') as file:
+
+with open(os.path.join(DICTIONARIES_PATH, 'sample_to_type.pkl'), 'rb') as file:
     sample_to_type = pickle.load(file) 
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/type_to_subclass.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'type_to_subclass.pkl'), 'rb') as file:
     type_to_subclass = pickle.load(file)   
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/sample_to_subclass.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'sample_to_subclass.pkl'), 'rb') as file:
     sample_to_subclass = pickle.load(file)    
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/sample_to_class.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'sample_to_class.pkl'), 'rb') as file:
     sample_to_class = pickle.load(file)    
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/sample_to_division.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'sample_to_division.pkl'), 'rb') as file:
     sample_to_division = pickle.load(file)    
     
-with open('/bil/users/psimko/holis/transcriptomic_analysis/taxonomy_dictionaries/class_to_supertype.pkl', 'rb') as file:
+with open(os.path.join(DICTIONARIES_PATH, 'class_to_supertype.pkl'), 'rb') as file:
     class_to_supertype = pickle.load(file)    
     
 ################################################################################################################
@@ -109,7 +111,7 @@ gene_list = [
 #              'Pecam1', 'Eea1', 'Lamp1', 'Cd68', 'Bdnf', 'Rbfox3', 'Sod2', 'Sun2','Calb1', 'Calb2','Pvalb', 'Qk', 'Gfap', 'Nos1']
 
 ################################################################################################################
-##### Precompute global variable
+##### Precompute global variables
 ################################################################################################################
 
 avg_expression_div_df = avg_expression_genesAll_div_df[gene_list]
@@ -172,5 +174,6 @@ app = dash.Dash(__name__)
 
 # # Callbacks automatically register from import if they use @app.callback or @callback
 
+# This is in the wsgi file
 # if __name__ == '__main__':
 #     app.run_server(host="0.0.0.0", port=8050, debug=False)

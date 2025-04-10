@@ -8,8 +8,10 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 import plotly.colors
 import matplotlib.colors as mcolors
+from plotly.colors import sample_colorscale
 import matplotlib.pyplot as plt
 from numpy import inf
+import colorcet as cc
 
 ################################################################################################################
 ##### Helper functions (can be moved to utils later)
@@ -191,7 +193,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         #Create a colormap
 
         # Define a fixed set of distinct colors 
-        distinct_colors = plotly.colors.qualitative.Safe + plotly.colors.qualitative.Dark24
+        #distinct_colors = plotly.colors.qualitative.Safe + plotly.colors.qualitative.Dark24
+        distinct_colors = distinct_colors = cc.glasbey[:256]
 
         # Ensure we have enough colors (if not, repeat or extend)
         num_unique_signatures = expression_cells_bin_df['binary_signature'].nunique()
