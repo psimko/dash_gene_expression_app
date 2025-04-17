@@ -24,6 +24,131 @@ def row_to_binary(row):
 def binary_to_decimal(binary_str):
     return int(binary_str, 2)
 
+def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7):
+    if not toggle_value:
+        toggle_value = ['binary']
+
+    unique_divisions = avg_expression_genesAll_div_df.index
+    unique_classes = avg_expression_genesAll_class_df.index
+    print(unique_divisions)
+
+    # Create a color map for divisions
+    division_colors = plt.cm.jet(np.linspace(0, 1, len(unique_divisions)))
+    division_colors_hex = [mcolors.to_hex(color) for color in division_colors]
+    division_colors_dict = {division: division_colors_hex[i] for i, division in enumerate(unique_divisions)}
+ 
+    bar_plots = []
+    for gene in genes_to_test:
+        class_expression = avg_expression_class_df[gene]
+        sorted_classes = []
+        for division in unique_divisions:
+            division_classes = [cls for cls in class_expression.index if class_to_division[cls] == division]
+            sorted_classes.extend(division_classes)
+    
+        class_expression = class_expression.loc[sorted_classes]
+    
+        # class_colors = [division_colors_dict[class_to_division[cls]] for cls in sorted_classes]
+        # class_colors_hex = [mcolors.to_hex(color) for color in class_colors]
+        class_colors_dict = {cls: division_colors_dict[class_to_division[cls]] for cls in class_to_division}
+    
+    
+        class_expression['colors'] = class_expression.index.map(class_colors_dict)
+    
+        expression_values = class_expression[sorted_classes].values
+    
+    
+        # Calculate error bars (asymmetric, prevent negative)
+        division_std_dev = avg_expression_class_df[gene].std()
+        upper_error = np.full_like(expression_values, division_std_dev)
+        lower_error = np.minimum(expression_values, division_std_dev)
+    
+        fig_bars = go.Figure()
+    
+        # Add bars
+        fig_bars.add_trace(go.Bar(
+            x=sorted_classes,
+            y=expression_values,
+            marker_color=class_expression['colors'],
+            error_y=dict(
+                type='data',
+                symmetric=False,
+                array=upper_error,
+                arrayminus=lower_error,
+                thickness=1.5,
+                width=3,
+                color='rgba(0,0,0,0.5)'
+            )
+        ))
+    
+    
+        for division in unique_divisions:
+            fig_bars.add_trace(go.Scatter(
+                x=[sorted_classes[0]],  # Use a real x-value
+                y=[0],  # Set y to a dummy value like 0
+                mode='markers',
+                marker=dict(color=division_colors_dict[division], size=10),
+                name=division,
+                legendgroup=division,  # Group the bars with the legend
+                showlegend=True
+            ))
+    
+        ########################################################################
+        # Determine which thresholds to show
+        ########################################################################
+        
+        threshold_shapes = []
+    
+        if 'binary' in toggle_value:
+            threshold_shapes.append(dict(
+                type='line',
+                xref='paper', yref='y',
+                x0=0, x1=1,
+                y0=binary_threshold, y1=binary_threshold,
+                line=dict(color='red', width=2, dash='dash')
+            ))
+            
+        elif 'trinary' in toggle_value:
+            threshold_shapes.extend([
+                dict(
+                    type='line',
+                    xref='paper', yref='y',
+                    x0=0, x1=1,
+                    y0=trinary_threshold_low, y1=trinary_threshold_low,
+                    line=dict(color='orange', width=2, dash='dash')
+                ),
+                dict(
+                    type='line',
+                    xref='paper', yref='y',
+                    x0=0, x1=1,
+                    y0=trinary_threshold_high, y1=trinary_threshold_high,
+                    line=dict(color='green', width=2, dash='dash')
+                )
+            ])
+    
+        #######################################################################
+    
+        fig_bars.update_layout(
+            title=f'Gene Expression in Classes: {gene}',
+            xaxis_title='Classes',
+            yaxis_title='Expression Intensity',
+            barmode='group',
+            legend=dict(itemsizing='constant',traceorder='normal'),
+            legend_title='Divisions',
+            yaxis=dict(range=[0, 10]),
+            width=900,
+            height=500,
+            plot_bgcolor='white',
+            shapes=threshold_shapes
+        )
+    
+        print("Threshold shapes:", threshold_shapes)
+    
+        fig_bars.update_xaxes(tickangle=45, tickfont=dict(size=10))
+    
+        bar_plots.append(dcc.Graph(figure=fig_bars))
+    
+    return bar_plots
+
 ################################################################################################################
 ##### Callback decorator
 ################################################################################################################
@@ -33,12 +158,14 @@ def binary_to_decimal(binary_str):
      Output('sunburst2', 'figure'),
      Output('gene-bar-plots', 'children'),
      Output('store-fig-bin', 'data'),
-     Output('store-fig-trin', 'data')],
+     Output('store-fig-trin', 'data'),
+     Output('store-genes', 'data')],
     [Input('update-button', 'n_clicks'),
      Input('toggle-trinary', 'value')], 
     [State('gene-input', 'value'),
      State('store-fig-bin', 'data'),
-     State('store-fig-trin', 'data')]
+     State('store-fig-trin', 'data'),
+     State('store-genes', 'data')]
 )
 
 ################################################################################################################
@@ -46,12 +173,14 @@ def binary_to_decimal(binary_str):
 ################################################################################################################
 
                                    
-def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_fig_trin):
+def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_fig_trin, store_genes):
+    if toggle_value is None:
+        toggle_value = ['binary']
     ctx = dash.callback_context  # Identifies what triggered the callback
     bar_plots = []
 
     if not ctx.triggered:  # If nothing has triggered the function yet
-        return go.Figure(), go.Figure(), [], go.Figure().to_dict(), go.Figure().to_dict()
+        return go.Figure(), go.Figure(), [], go.Figure().to_dict(), go.Figure().to_dict(), []
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]  # Get the trigger ID
     
@@ -64,6 +193,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
     # If button is clicked, update sunburst and store new figures
     if trigger_id == "update-button":
         genes_to_test = [gene.strip() for gene in gene_input.split(',') if gene.strip()]
+        num_genes = len(genes_to_test)
+        
         print(f"Updating plots for genes: {genes_to_test}")
         print(genes_to_test)
 
@@ -168,7 +299,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # fig_to_use = fig_trin if 'trinary' in toggle_value else fig_bin
 
-        expression_cells_bin_df = (avg_expression_subclass_df >= 2).astype(int)
+        binary_threshold = 2
+        expression_cells_bin_df = (avg_expression_subclass_df >= binary_threshold).astype(int)
 
         # Add one column with the cluster number and one with the corresponding binary expression
         if 'binary_signature' in expression_cells_bin_df.columns:
@@ -203,7 +335,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Get unique binary signatures
         unique_signatures = expression_cells_bin_df['binary_signature'].unique()
-
+        possible_binary_signatures = 2**num_genes
+        
         # Create a mapping dictionary for binary_signature → color
         binary_signature_to_color = {sig: distinct_colors[i] for i, sig in enumerate(unique_signatures)}
 
@@ -270,7 +403,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
             title_x=0.5,
             showlegend=True,  # Ensure legend is displayed
             #margin=dict(t=50, b=10, l=10, r=10),
-            legend=dict(title="Binary Clusters", font=dict(size=12))
+            legend=dict(title=f"Binary Clusters<br>{num_unique_signatures}/{possible_binary_signatures}", font=dict(size=12))
         )
 
         # Add legend traces to figure
@@ -287,9 +420,11 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Apply trinarization
         # expression_cells_trin_df = avg_expression_subclass_df.copy()
-
+   
+        trinary_threshold_low = 2
+        trinary_threshold_high = 7
         expression_cells_trin_df = avg_expression_subclass_df.applymap(
-            lambda x: 0 if x < 2 else (1 if x < 7 else 2)
+            lambda x: 0 if x < trinary_threshold_low else (1 if x < trinary_threshold_high else 2)
         )
 
         # Add one column with the cluster number and one with the corresponding trinary expression
@@ -318,6 +453,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Get unique trinary signatures
         unique_signatures = expression_cells_trin_df['trinary_signature'].unique()
+        possible_trinary_signatures = 3**num_genes
 
         # Create a mapping dictionary for trinary_signature → color
         trinary_signature_to_color = {sig: distinct_colors[i] for i, sig in enumerate(unique_signatures)}
@@ -384,7 +520,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
             title_x=0.5,
             showlegend=True,  # Ensure legend is displayed
             #margin=dict(t=50, b=10, l=10, r=10),
-            legend=dict(title="Trinary Clusters", font=dict(size=12))
+            legend=dict(title=f"Trinary Clusters<br>{num_unique_signatures}/{possible_trinary_signatures}", font=dict(size=12))
         )
 
         # Add legend traces to figure
@@ -406,93 +542,97 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         division_colors_hex = [mcolors.to_hex(color) for color in division_colors]
         division_colors_dict = {division: division_colors_hex[i] for i, division in enumerate(unique_divisions)}
 
-        bar_plots = []
-        for gene in genes_to_test:
-            class_expression = avg_expression_class_df[gene]
-            sorted_classes = []
-            for division in unique_divisions:
-                division_classes = [cls for cls in class_expression.index if class_to_division[cls] == division]
-                sorted_classes.extend(division_classes)
+        # bar_plots = []
+        # for gene in genes_to_test:
+        #     class_expression = avg_expression_class_df[gene]
+        #     sorted_classes = []
+        #     for division in unique_divisions:
+        #         division_classes = [cls for cls in class_expression.index if class_to_division[cls] == division]
+        #         sorted_classes.extend(division_classes)
 
-            class_expression = class_expression.loc[sorted_classes]
+        #     class_expression = class_expression.loc[sorted_classes]
 
-            # class_colors = [division_colors_dict[class_to_division[cls]] for cls in sorted_classes]
-            # class_colors_hex = [mcolors.to_hex(color) for color in class_colors]
-            class_colors_dict = {cls: division_colors_dict[class_to_division[cls]] for cls in class_to_division}
-
-
-            class_expression['colors'] = class_expression.index.map(class_colors_dict)
-
-            expression_values = class_expression[sorted_classes].values
+        #     # class_colors = [division_colors_dict[class_to_division[cls]] for cls in sorted_classes]
+        #     # class_colors_hex = [mcolors.to_hex(color) for color in class_colors]
+        #     class_colors_dict = {cls: division_colors_dict[class_to_division[cls]] for cls in class_to_division}
 
 
-            # Calculate error bars (asymmetric, prevent negative)
-            division_std_dev = avg_expression_class_df[gene].std()
-            upper_error = np.full_like(expression_values, division_std_dev)
-            lower_error = np.minimum(expression_values, division_std_dev)
+        #     class_expression['colors'] = class_expression.index.map(class_colors_dict)
 
-            fig_bars = go.Figure()
-
-            # Add bars
-            fig_bars.add_trace(go.Bar(
-                x=sorted_classes,
-                y=expression_values,
-                marker_color=class_expression['colors'],
-                error_y=dict(
-                    type='data',
-                    symmetric=False,
-                    array=upper_error,
-                    arrayminus=lower_error,
-                    thickness=1.5,
-                    width=3,
-                    color='rgba(0,0,0,0.5)'
-                )
-            ))
+        #     expression_values = class_expression[sorted_classes].values
 
 
-            for division in unique_divisions:
-                fig_bars.add_trace(go.Scatter(
-                    x=[sorted_classes[0]],  # Use a real x-value
-                    y=[0],  # Set y to a dummy value like 0
-                    mode='markers',
-                    marker=dict(color=division_colors_dict[division], size=10),
-                    name=division,
-                    legendgroup=division,  # Group the bars with the legend
-                    showlegend=True
-                ))
+        #     # Calculate error bars (asymmetric, prevent negative)
+        #     division_std_dev = avg_expression_class_df[gene].std()
+        #     upper_error = np.full_like(expression_values, division_std_dev)
+        #     lower_error = np.minimum(expression_values, division_std_dev)
 
-            fig_bars.update_layout(
-                title=f'Gene Expression in Classes: {gene}',
-                xaxis_title='Classes',
-                yaxis_title='Expression Intensity',
-                barmode='group',
-                legend=dict(itemsizing='constant',traceorder='normal'),
-                legend_title='Divisions',
-                yaxis=dict(range=[0, 10]),
-                width=900,
-                height=500,
-                plot_bgcolor='white'
-            )
+        #     fig_bars = go.Figure()
 
-            fig_bars.update_xaxes(tickangle=45, tickfont=dict(size=10))
-
-            bar_plots.append(dcc.Graph(figure=fig_bars))
+        #     # Add bars
+        #     fig_bars.add_trace(go.Bar(
+        #         x=sorted_classes,
+        #         y=expression_values,
+        #         marker_color=class_expression['colors'],
+        #         error_y=dict(
+        #             type='data',
+        #             symmetric=False,
+        #             array=upper_error,
+        #             arrayminus=lower_error,
+        #             thickness=1.5,
+        #             width=3,
+        #             color='rgba(0,0,0,0.5)'
+        #         )
+        #     ))
 
 
-        return fig, fig_bin, bar_plots, fig_bin.to_dict(), fig_trin.to_dict()
+        #     for division in unique_divisions:
+        #         fig_bars.add_trace(go.Scatter(
+        #             x=[sorted_classes[0]],  # Use a real x-value
+        #             y=[0],  # Set y to a dummy value like 0
+        #             mode='markers',
+        #             marker=dict(color=division_colors_dict[division], size=10),
+        #             name=division,
+        #             legendgroup=division,  # Group the bars with the legend
+        #             showlegend=True
+        #         ))
+
+        #     fig_bars.update_layout(
+        #         title=f'Gene Expression in Classes: {gene}',
+        #         xaxis_title='Classes',
+        #         yaxis_title='Expression Intensity',
+        #         barmode='group',
+        #         legend=dict(itemsizing='constant',traceorder='normal'),
+        #         legend_title='Divisions',
+        #         yaxis=dict(range=[0, 10]),
+        #         width=900,
+        #         height=500,
+        #         plot_bgcolor='white'
+        #     )
+
+        #     fig_bars.update_xaxes(tickangle=45, tickfont=dict(size=10))
+
+        #     bar_plots.append(dcc.Graph(figure=fig_bars))
+
+
+        # return fig, fig_bin, generate_bar_plots(toggle_value, genes_to_test), fig_bin.to_dict(), fig_trin.to_dict()
+        return fig, fig_bin, update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7), fig_bin.to_dict(), fig_trin.to_dict(), genes_to_test
     
     ########################################################################
 
     # If toggle is switched, retrieve stored figures and update `sunburst2`
     elif trigger_id == "toggle-trinary":
         if stored_fig_bin is None or stored_fig_trin is None:
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
         fig_bin = go.Figure(stored_fig_bin)
         fig_trin = go.Figure(stored_fig_trin)
         fig_to_use = fig_trin if 'trinary' in toggle_value else fig_bin
+        genes_to_test = store_genes
 
-        return dash.no_update, fig_to_use, dash.no_update, dash.no_update, dash.no_update
+        #updated_bar_plots = update_bar_plots(toggle_value)
+
+        return dash.no_update, fig_to_use, update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7), dash.no_update, dash.no_update, dash.no_update
 
     ################################################################################################################
     ################################################################################################################

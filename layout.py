@@ -6,6 +6,7 @@ app_layout = html.Div([
     # Stores for precomputed figures (hidden storage)
     dcc.Store(id='store-fig-bin'),
     dcc.Store(id='store-fig-trin'),
+    dcc.Store(id='store-genes'),
 
     html.Label("Enter genes (comma-separated):"),
     dcc.Input(id='gene-input', type='text', value='Aif1, Gfap', debounce=True, style={'width': '100%'}),
