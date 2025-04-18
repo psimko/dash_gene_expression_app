@@ -12,6 +12,7 @@ from plotly.colors import sample_colorscale
 import matplotlib.pyplot as plt
 from numpy import inf
 import colorcet as cc
+import re
 
 ################################################################################################################
 ##### Helper functions (can be moved to utils later)
@@ -24,13 +25,23 @@ def row_to_binary(row):
 def binary_to_decimal(binary_str):
     return int(binary_str, 2)
 
-def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7):
+def update_bar_plots(toggle_value, 
+                     genes_to_test,
+                     avg_expression_div_df, 
+                     avg_expression_class_df,
+                     gene_thresholds,
+                     binary_threshold=2, 
+                     trinary_threshold_low=2, 
+                     trinary_threshold_high=7
+                    ):
+    
     if not toggle_value:
         toggle_value = ['binary']
 
-    unique_divisions = avg_expression_genesAll_div_df.index
-    unique_classes = avg_expression_genesAll_class_df.index
-    print(unique_divisions)
+    # unique_divisions = avg_expression_genesAll_div_df.index
+    # unique_classes = avg_expression_genesAll_class_df.index
+    unique_divisions = avg_expression_div_df.index
+    unique_classes = avg_expression_class_df.index
 
     # Create a color map for divisions
     division_colors = plt.cm.jet(np.linspace(0, 1, len(unique_divisions)))
@@ -39,7 +50,8 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
  
     bar_plots = []
     for gene in genes_to_test:
-        class_expression = avg_expression_class_df[gene]
+        gene_label = get_gene_label(gene)
+        class_expression = avg_expression_class_df[gene_label]
         sorted_classes = []
         for division in unique_divisions:
             division_classes = [cls for cls in class_expression.index if class_to_division[cls] == division]
@@ -58,7 +70,7 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
     
     
         # Calculate error bars (asymmetric, prevent negative)
-        division_std_dev = avg_expression_class_df[gene].std()
+        division_std_dev = avg_expression_class_df[gene_label].std()
         upper_error = np.full_like(expression_values, division_std_dev)
         lower_error = np.minimum(expression_values, division_std_dev)
     
@@ -95,7 +107,19 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
         ########################################################################
         # Determine which thresholds to show
         ########################################################################
-        
+
+        # Get gene-specific thresholds, or use global defaults
+        thresholds = gene_thresholds.get(gene_label, [binary_threshold, trinary_threshold_high])
+    
+        if gene_label in gene_thresholds:
+            binary_thr = gene_thresholds[gene_label][0]
+            trinary_thr_low = gene_thresholds[gene_label][0]
+            trinary_thr_high = gene_thresholds[gene_label][1]
+        else:
+            binary_thr = binary_threshold
+            trinary_thr_low = trinary_threshold_low
+            trinary_thr_high = trinary_threshold_high
+            
         threshold_shapes = []
     
         if 'binary' in toggle_value:
@@ -103,7 +127,7 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
                 type='line',
                 xref='paper', yref='y',
                 x0=0, x1=1,
-                y0=binary_threshold, y1=binary_threshold,
+                y0=binary_thr, y1=binary_thr,
                 line=dict(color='red', width=2, dash='dash')
             ))
             
@@ -113,14 +137,14 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
                     type='line',
                     xref='paper', yref='y',
                     x0=0, x1=1,
-                    y0=trinary_threshold_low, y1=trinary_threshold_low,
+                    y0=trinary_thr_low, y1=trinary_thr_low,
                     line=dict(color='orange', width=2, dash='dash')
                 ),
                 dict(
                     type='line',
                     xref='paper', yref='y',
                     x0=0, x1=1,
-                    y0=trinary_threshold_high, y1=trinary_threshold_high,
+                    y0=trinary_thr_high, y1=trinary_thr_high,
                     line=dict(color='green', width=2, dash='dash')
                 )
             ])
@@ -149,6 +173,43 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
     
     return bar_plots
 
+# Parse gene input with (possibly) pooled genes
+def parse_gene_input(gene_input):
+    tokens = re.findall(r'\[[^\]]+\]|[^,\[\]\s]+', gene_input)
+    parsed = []
+    for token in tokens:
+        token = token.strip()
+        if token.startswith('[') and token.endswith(']'):
+            # Remove brackets and split inside
+            pooled_genes = [g.strip() for g in token[1:-1].split(',') if g.strip()]
+            parsed.append(pooled_genes)
+        else:
+            parsed.append(token)
+    return parsed
+
+# Pool genes in a dataframe
+def pool_genes_in_df(df, genes_to_test):
+    
+    """Here genes_to_test = ["Rbfox3", ["Gad1", "Acta2"], "Pvalb", ["Gfap", "Aif1"]] for example"""
+    
+    df_copy = df.copy()
+    pooled_columns = []
+
+    for entry in genes_to_test:
+        if isinstance(entry, list):
+            # Make a column name like "Gad1+Acta2"
+            col_name = '+'.join(entry)
+            # Sum the selected genes across rows
+            df_copy[col_name] = df_copy[entry].sum(axis=1)
+            pooled_columns.append(col_name)
+        else:
+            pooled_columns.append(entry)
+    
+    return df_copy[pooled_columns]
+
+def get_gene_label(g):
+    return '+'.join(g) if isinstance(g, list) else g
+
 ################################################################################################################
 ##### Callback decorator
 ################################################################################################################
@@ -159,13 +220,19 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
      Output('gene-bar-plots', 'children'),
      Output('store-fig-bin', 'data'),
      Output('store-fig-trin', 'data'),
-     Output('store-genes', 'data')],
+     Output('store-genes', 'data'),
+     Output('store-expression-div', 'data'),
+     Output('store-expression-class', 'data')],
+     # Output('store-expression-subclass', 'data'),
+     # Output('store-expression-supertype', 'data')],
     [Input('update-button', 'n_clicks'),
      Input('toggle-trinary', 'value')], 
     [State('gene-input', 'value'),
      State('store-fig-bin', 'data'),
      State('store-fig-trin', 'data'),
-     State('store-genes', 'data')]
+     State('store-genes', 'data'),
+     State('store-expression-div', 'data'),
+     State('store-expression-class', 'data')]
 )
 
 ################################################################################################################
@@ -173,7 +240,7 @@ def update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_th
 ################################################################################################################
 
                                    
-def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_fig_trin, store_genes):
+def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_fig_trin, store_genes, stored_expression_div, stored_expression_class):
     if toggle_value is None:
         toggle_value = ['binary']
     ctx = dash.callback_context  # Identifies what triggered the callback
@@ -192,16 +259,23 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
     # If button is clicked, update sunburst and store new figures
     if trigger_id == "update-button":
-        genes_to_test = [gene.strip() for gene in gene_input.split(',') if gene.strip()]
-        num_genes = len(genes_to_test)
+        # genes_to_test = [gene.strip() for gene in gene_input.split(',') if gene.strip()]
+        # num_genes = len(genes_to_test)
+        genes_to_test = parse_gene_input(gene_input)
+        num_genes = sum(len(g) if isinstance(g, list) else 1 for g in genes_to_test)
         
         print(f"Updating plots for genes: {genes_to_test}")
         print(genes_to_test)
 
-        avg_expression_div_df = avg_expression_genesAll_div_df[genes_to_test]
-        avg_expression_class_df = avg_expression_genesAll_class_df[genes_to_test]
-        avg_expression_subclass_df = avg_expression_genesAll_subclass_df[genes_to_test]
-        avg_expression_supertype_df = avg_expression_genesAll_supertype_df[genes_to_test]
+        # avg_expression_div_df = avg_expression_genesAll_div_df[genes_to_test]
+        # avg_expression_class_df = avg_expression_genesAll_class_df[genes_to_test]
+        # avg_expression_subclass_df = avg_expression_genesAll_subclass_df[genes_to_test]
+        # avg_expression_supertype_df = avg_expression_genesAll_supertype_df[genes_to_test]
+
+        avg_expression_div_df = pool_genes_in_df(avg_expression_genesAll_div_df, genes_to_test)
+        avg_expression_class_df = pool_genes_in_df(avg_expression_genesAll_class_df, genes_to_test)
+        avg_expression_subclass_df = pool_genes_in_df(avg_expression_genesAll_subclass_df, genes_to_test)
+        avg_expression_supertype_df = pool_genes_in_df(avg_expression_genesAll_supertype_df, genes_to_test)
         
         ################################################################################################################
         ##### Sunburst 1 - expression (% of expressed supertypes in subclasses for given genes)
@@ -299,8 +373,19 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # fig_to_use = fig_trin if 'trinary' in toggle_value else fig_bin
 
-        binary_threshold = 2
-        expression_cells_bin_df = (avg_expression_subclass_df >= binary_threshold).astype(int)
+        # binary_threshold = 2
+        # expression_cells_bin_df = (avg_expression_subclass_df >= binary_threshold).astype(int)
+
+        # Binarize expressions
+        expression_cells_bin_df = avg_expression_subclass_df.copy()
+        num_columns = expression_cells_bin_df.shape[1]
+        print(f'expression_cells_bin_df= {expression_cells_bin_df.columns}')
+        for gene in expression_cells_bin_df.columns:
+            label = get_gene_label(gene)
+            threshold = gene_thresholds.get(label, [2])[0]  # first value, fallback to 2
+            expression_cells_bin_df[label] = (expression_cells_bin_df[label] >= threshold).astype(int)
+
+        print(expression_cells_bin_df)
 
         # Add one column with the cluster number and one with the corresponding binary expression
         if 'binary_signature' in expression_cells_bin_df.columns:
@@ -313,6 +398,8 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Use these this line if you want to use binary expression of subclasses, otherwise the one above
         expression_cells_bin_df["subclass"] = expression_cells_bin_df.index
+
+        print(expression_cells_bin_df)
 
         # Create the dictionary using groupby
         subclass_to_binary_signature = expression_cells_bin_df.set_index('subclass')['binary_signature'].to_dict()
@@ -335,7 +422,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Get unique binary signatures
         unique_signatures = expression_cells_bin_df['binary_signature'].unique()
-        possible_binary_signatures = 2**num_genes
+        possible_binary_signatures = 2**num_columns
         
         # Create a mapping dictionary for binary_signature → color
         binary_signature_to_color = {sig: distinct_colors[i] for i, sig in enumerate(unique_signatures)}
@@ -416,15 +503,23 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
         ##### Sunburst 2 - trinary
         ################################################################################################################
 
-        # avg_expression_genesAll_subclass_df = avg_expression_genesAll_subclass_df[genes_to_test]
-
         # Apply trinarization
-        # expression_cells_trin_df = avg_expression_subclass_df.copy()
+        expression_cells_trin_df = avg_expression_subclass_df.copy()
    
-        trinary_threshold_low = 2
-        trinary_threshold_high = 7
-        expression_cells_trin_df = avg_expression_subclass_df.applymap(
-            lambda x: 0 if x < trinary_threshold_low else (1 if x < trinary_threshold_high else 2)
+        # trinary_threshold_low = 2
+        # trinary_threshold_high = 7
+        # expression_cells_trin_df = avg_expression_subclass_df.applymap(
+        #     lambda x: 0 if x < trinary_threshold_low else (1 if x < trinary_threshold_high else 2)
+        # )
+
+        def trinarize_column(col, gene_thresholds, default_low=2, default_high=7):
+            gene = col.name
+            low, high = gene_thresholds.get(gene, [default_low, default_high])
+            return col.apply(lambda x: 0 if x < low else (1 if x < high else 2))
+        
+        expression_cells_trin_df = avg_expression_subclass_df.apply(
+            lambda col: trinarize_column(col, gene_thresholds),
+            axis=0
         )
 
         # Add one column with the cluster number and one with the corresponding trinary expression
@@ -453,7 +548,7 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         # Get unique trinary signatures
         unique_signatures = expression_cells_trin_df['trinary_signature'].unique()
-        possible_trinary_signatures = 3**num_genes
+        possible_trinary_signatures = 3**num_columns
 
         # Create a mapping dictionary for trinary_signature → color
         trinary_signature_to_color = {sig: distinct_colors[i] for i, sig in enumerate(unique_signatures)}
@@ -535,104 +630,65 @@ def update_sunburst(n_clicks, toggle_value, gene_input, stored_fig_bin, stored_f
 
         unique_divisions = avg_expression_genesAll_div_df.index
         unique_classes = avg_expression_genesAll_class_df.index
-        print(unique_divisions)
 
         # Create a color map for divisions
         division_colors = plt.cm.jet(np.linspace(0, 1, len(unique_divisions)))
         division_colors_hex = [mcolors.to_hex(color) for color in division_colors]
         division_colors_dict = {division: division_colors_hex[i] for i, division in enumerate(unique_divisions)}
 
-        # bar_plots = []
-        # for gene in genes_to_test:
-        #     class_expression = avg_expression_class_df[gene]
-        #     sorted_classes = []
-        #     for division in unique_divisions:
-        #         division_classes = [cls for cls in class_expression.index if class_to_division[cls] == division]
-        #         sorted_classes.extend(division_classes)
-
-        #     class_expression = class_expression.loc[sorted_classes]
-
-        #     # class_colors = [division_colors_dict[class_to_division[cls]] for cls in sorted_classes]
-        #     # class_colors_hex = [mcolors.to_hex(color) for color in class_colors]
-        #     class_colors_dict = {cls: division_colors_dict[class_to_division[cls]] for cls in class_to_division}
-
-
-        #     class_expression['colors'] = class_expression.index.map(class_colors_dict)
-
-        #     expression_values = class_expression[sorted_classes].values
-
-
-        #     # Calculate error bars (asymmetric, prevent negative)
-        #     division_std_dev = avg_expression_class_df[gene].std()
-        #     upper_error = np.full_like(expression_values, division_std_dev)
-        #     lower_error = np.minimum(expression_values, division_std_dev)
-
-        #     fig_bars = go.Figure()
-
-        #     # Add bars
-        #     fig_bars.add_trace(go.Bar(
-        #         x=sorted_classes,
-        #         y=expression_values,
-        #         marker_color=class_expression['colors'],
-        #         error_y=dict(
-        #             type='data',
-        #             symmetric=False,
-        #             array=upper_error,
-        #             arrayminus=lower_error,
-        #             thickness=1.5,
-        #             width=3,
-        #             color='rgba(0,0,0,0.5)'
-        #         )
-        #     ))
-
-
-        #     for division in unique_divisions:
-        #         fig_bars.add_trace(go.Scatter(
-        #             x=[sorted_classes[0]],  # Use a real x-value
-        #             y=[0],  # Set y to a dummy value like 0
-        #             mode='markers',
-        #             marker=dict(color=division_colors_dict[division], size=10),
-        #             name=division,
-        #             legendgroup=division,  # Group the bars with the legend
-        #             showlegend=True
-        #         ))
-
-        #     fig_bars.update_layout(
-        #         title=f'Gene Expression in Classes: {gene}',
-        #         xaxis_title='Classes',
-        #         yaxis_title='Expression Intensity',
-        #         barmode='group',
-        #         legend=dict(itemsizing='constant',traceorder='normal'),
-        #         legend_title='Divisions',
-        #         yaxis=dict(range=[0, 10]),
-        #         width=900,
-        #         height=500,
-        #         plot_bgcolor='white'
-        #     )
-
-        #     fig_bars.update_xaxes(tickangle=45, tickfont=dict(size=10))
-
-        #     bar_plots.append(dcc.Graph(figure=fig_bars))
-
-
-        # return fig, fig_bin, generate_bar_plots(toggle_value, genes_to_test), fig_bin.to_dict(), fig_trin.to_dict()
-        return fig, fig_bin, update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7), fig_bin.to_dict(), fig_trin.to_dict(), genes_to_test
+        return (
+            fig,
+            fig_bin,
+            update_bar_plots(
+                toggle_value,
+                genes_to_test,
+                avg_expression_div_df,
+                avg_expression_class_df,
+                gene_thresholds,
+                binary_threshold=2,
+                trinary_threshold_low=2,
+                trinary_threshold_high=7
+            ), 
+            fig_bin.to_dict(),
+            fig_trin.to_dict(),
+            genes_to_test,
+            avg_expression_div_df.to_dict(),     
+            avg_expression_class_df.to_dict(),   
+        )
     
     ########################################################################
 
     # If toggle is switched, retrieve stored figures and update `sunburst2`
     elif trigger_id == "toggle-trinary":
         if stored_fig_bin is None or stored_fig_trin is None:
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
         fig_bin = go.Figure(stored_fig_bin)
         fig_trin = go.Figure(stored_fig_trin)
         fig_to_use = fig_trin if 'trinary' in toggle_value else fig_bin
         genes_to_test = store_genes
 
-        #updated_bar_plots = update_bar_plots(toggle_value)
+        avg_expression_div_df = pd.DataFrame(stored_expression_div)
+        avg_expression_class_df = pd.DataFrame(stored_expression_class)
 
-        return dash.no_update, fig_to_use, update_bar_plots(toggle_value, genes_to_test, binary_threshold=2, trinary_threshold_low=2, trinary_threshold_high=7), dash.no_update, dash.no_update, dash.no_update
+        return (dash.no_update, 
+                fig_to_use, 
+                update_bar_plots(
+                    toggle_value, 
+                    genes_to_test, 
+                    avg_expression_div_df, 
+                    avg_expression_class_df, 
+                    gene_thresholds, 
+                    binary_threshold=2, 
+                    trinary_threshold_low=2, 
+                    trinary_threshold_high=7
+                ), 
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update
+        )
 
     ################################################################################################################
     ################################################################################################################

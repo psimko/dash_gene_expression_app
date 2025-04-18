@@ -27,6 +27,8 @@ avg_expression_genesAll_div_df = pd.read_csv(os.path.join(DATA_PATH,'avg_express
 avg_expression_genesAll_class_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_class_genesAll_notNormalized_df.csv'), index_col=0)
 avg_expression_genesAll_subclass_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_subclass_genesAll_notNormalized_df.csv'), index_col=0)
 avg_expression_genesAll_supertype_df = pd.read_csv(os.path.join(DATA_PATH, 'avg_expression_supertypes_genesAll_notNormalized_df.csv'), index_col=0)
+with open(os.path.join(DATA_PATH, 'gene_thresholds_trinarization.pickle'), 'rb') as file:
+    gene_thresholds = pickle.load(file)
 
 # Load binarized expressions
 # with open('/bil/users/psimko/holis/clustering/2025_holis_analysis/expression_cells_bin_df.pickle', 'rb') as file:
@@ -161,7 +163,7 @@ __all__ = [
     "supertype_to_subclass", "sample_to_type",
     "type_to_subclass", "sample_to_subclass",
     "sample_to_class", "sample_to_division",
-    "class_to_supertype"
+    "class_to_supertype", "gene_thresholds"
 ]
 
 ################################################################################################################

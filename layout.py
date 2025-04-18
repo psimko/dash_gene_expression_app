@@ -7,6 +7,10 @@ app_layout = html.Div([
     dcc.Store(id='store-fig-bin'),
     dcc.Store(id='store-fig-trin'),
     dcc.Store(id='store-genes'),
+    dcc.Store(id='store-expression-div'),
+    dcc.Store(id='store-expression-class'),
+    # dcc.Store(id='store-expression-subclass'),
+    # dcc.Store(id='store-expression-supertype'),
 
     html.Label("Enter genes (comma-separated):"),
     dcc.Input(id='gene-input', type='text', value='Aif1, Gfap', debounce=True, style={'width': '100%'}),
